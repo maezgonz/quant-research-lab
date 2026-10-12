@@ -7,6 +7,10 @@
 
 Curated, sanitized extraction of my working research repository. All credentials load from environment variables — see [`.env.example`](.env.example).
 
+![Monte Carlo efficient frontier — 20,000 random portfolios across equities, GGAL, gold and crypto](docs/img/efficient_frontier.png)
+
+*Demo: [`examples/generate_efficient_frontier.py`](examples/generate_efficient_frontier.py) — 20,000 random portfolios (Dirichlet weights) over 1y daily data of equities, GGAL, gold and crypto, colored by Sharpe ratio.*
+
 ## Packages
 
 | Package | Contents |
