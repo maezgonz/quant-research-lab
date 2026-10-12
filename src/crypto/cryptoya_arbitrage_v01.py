@@ -1,0 +1,385 @@
+import requests
+import pandas as pd
+import time
+from datetime import datetime
+from tabulate import tabulate
+
+class ArbitrajeDetector:
+    def __init__(self, intervalo_segundos=60, umbral_ganancia=0.5):
+        """
+        Inicializa el detector de arbitraje.
+        
+        Args:
+            intervalo_segundos (int): Intervalo entre verificaciones (en segundos)
+            umbral_ganancia (float): Umbral mínimo de ganancia porcentual para reportar
+        """
+        self.base_url = "https://criptoya.com/api"
+        self.intervalo = intervalo_segundos
+        self.umbral_ganancia = umbral_ganancia
+        
+        # Criptomonedas a monitorear
+        self.criptos = ["btc", "eth", "usdt", "dai", "usdc"]
+        
+        # Monedas fiat por país
+        self.monedas_por_pais = {
+            "argentina": "ars",
+            "mexico": "mxn",
+            "colombia": "cop",
+            "peru": "pen",
+            "chile": "clp",
+            "uruguay": "uyu",
+            "venezuela": "ves",
+            "paraguay": "pyg",
+            "bolivia": "bob",
+            "brazil": "brl",
+            "dominicana": "dop"
+        }
+        
+        # Comisiones estimadas de exchanges (porcentajes)
+        self.fees_exchanges = {
+            "binance": 0.1,
+            "ripio": 0.5,
+            "belo": 0.4,
+            "bitso": 0.6,
+            "letsbit": 0.5,
+            "buenbit": 0.7,
+            "lemoncash": 0.5,
+            "fiwind": 0.5,
+            "tiendacrypto": 1.0,
+            "bitmonedero": 0.8,
+            "decrypto": 0.9,
+            "latamex": 0.8,
+            "kriptonmarket": 0.7,
+            "calypso": 0.9,
+            "bybit": 0.1,
+            "cryptomkt": 0.8,
+            "paxful": 1.5,
+            "saldo": 0.8,
+            "satoshitango": 1.0,
+            "banexcoin": 0.7,
+            "copter": 0.9,
+            "buda": 0.7,
+            "bitex": 0.7,
+            "orionx": 0.7,
+            "trocafacil": 0.8
+        }
+        
+        # Redes blockchain por criptomoneda 
+        # [nombre_red, fee_en_usd, tiempo_confirmacion_minutos]
+        self.redes_blockchain = {
+            "btc": [
+                ["Bitcoin", 3.5, 30]
+            ],
+            "eth": [
+                ["Ethereum", 2.0, 5],
+                ["Arbitrum", 0.3, 1],
+                ["Optimism", 0.3, 1]
+            ],
+            "usdt": [
+                ["Ethereum (ERC20)", 2.5, 5],
+                ["Tron (TRC20)", 0.1, 1],
+                ["BSC (BEP20)", 0.2, 1],
+                ["Polygon", 0.05, 1],
+                ["Solana", 0.02, 1],
+                ["Arbitrum", 0.2, 1]
+            ],
+            "dai": [
+                ["Ethereum (ERC20)", 2.2, 5],
+                ["BSC (BEP20)", 0.2, 1],
+                ["Polygon", 0.05, 1],
+                ["Arbitrum", 0.2, 1],
+                ["Optimism", 0.2, 1]
+            ],
+            "usdc": [
+                ["Ethereum (ERC20)", 2.0, 5],
+                ["Tron (TRC20)", 0.1, 1],
+                ["BSC (BEP20)", 0.2, 1],
+                ["Polygon", 0.05, 1],
+                ["Solana", 0.02, 1],
+                ["Arbitrum", 0.2, 1],
+                ["Avalanche", 0.1, 1]
+            ]
+        }
+        
+        # Redes soportadas por cada exchange
+        self.redes_por_exchange = {
+            "binance": {
+                "btc": ["Bitcoin"],
+                "eth": ["Ethereum", "Arbitrum", "Optimism"],
+                "usdt": ["Ethereum (ERC20)", "Tron (TRC20)", "BSC (BEP20)", "Polygon", "Solana", "Arbitrum"],
+                "dai": ["Ethereum (ERC20)", "BSC (BEP20)", "Polygon", "Arbitrum", "Optimism"],
+                "usdc": ["Ethereum (ERC20)", "Tron (TRC20)", "BSC (BEP20)", "Polygon", "Solana", "Arbitrum", "Avalanche"]
+            },
+            "ripio": {
+                "btc": ["Bitcoin"],
+                "eth": ["Ethereum"],
+                "usdt": ["Ethereum (ERC20)", "Tron (TRC20)"],
+                "dai": ["Ethereum (ERC20)"],
+                "usdc": ["Ethereum (ERC20)"]
+            },
+            "bitso": {
+                "btc": ["Bitcoin"],
+                "eth": ["Ethereum"],
+                "usdt": ["Ethereum (ERC20)"],
+                "dai": ["Ethereum (ERC20)"],
+                "usdc": ["Ethereum (ERC20)"]
+            },
+            "letsbit": {
+                "btc": ["Bitcoin"],
+                "eth": ["Ethereum"],
+                "usdt": ["Ethereum (ERC20)", "Tron (TRC20)"],
+                "dai": ["Ethereum (ERC20)"],
+                "usdc": ["Ethereum (ERC20)"]
+            },
+            "buenbit": {
+                "btc": ["Bitcoin"],
+                "eth": ["Ethereum"],
+                "usdt": ["Ethereum (ERC20)"],
+                "dai": ["Ethereum (ERC20)"],
+                "usdc": ["Ethereum (ERC20)"]
+            },
+            "lemoncash": {
+                "btc": ["Bitcoin"],
+                "eth": ["Ethereum"],
+                "usdt": ["Ethereum (ERC20)", "Tron (TRC20)"],
+                "dai": ["Ethereum (ERC20)"],
+                "usdc": ["Ethereum (ERC20)"]
+            },
+            "belo": {
+                "btc": ["Bitcoin"],
+                "eth": ["Ethereum"],
+                "usdt": ["Ethereum (ERC20)"],
+                "dai": ["Ethereum (ERC20)"],
+                "usdc": ["Ethereum (ERC20)"]
+            },
+            "bybit": {
+                "btc": ["Bitcoin"],
+                "eth": ["Ethereum", "Arbitrum", "Optimism"],
+                "usdt": ["Ethereum (ERC20)", "Tron (TRC20)", "BSC (BEP20)", "Polygon", "Solana", "Arbitrum"],
+                "dai": ["Ethereum (ERC20)", "BSC (BEP20)", "Polygon", "Arbitrum"],
+                "usdc": ["Ethereum (ERC20)", "Tron (TRC20)", "BSC (BEP20)", "Polygon", "Solana", "Arbitrum", "Avalanche"]
+            }
+        }
+        
+        # Para exchanges no listados explícitamente, usar estas redes por defecto
+        self.redes_default = {
+            "btc": ["Bitcoin"],
+            "eth": ["Ethereum"],
+            "usdt": ["Ethereum (ERC20)", "Tron (TRC20)"],
+            "dai": ["Ethereum (ERC20)"],
+            "usdc": ["Ethereum (ERC20)"]
+        }
+    
+    def obtener_precio(self, cripto, moneda, pais="argentina"):
+        """Obtiene precios de una criptomoneda en todos los exchanges disponibles."""
+        try:
+            url = f"{self.base_url}/{cripto}/{moneda}/{pais}"
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(f"Error al obtener datos: {response.status_code}")
+                return {}
+        except Exception as e:
+            print(f"Error en la solicitud: {str(e)}")
+            return {}
+    
+    def encontrar_mejor_red(self, exchange_origen, exchange_destino, cripto):
+        """
+        Encuentra la red blockchain más económica que es soportada por ambos exchanges.
+        
+        Args:
+            exchange_origen: Nombre del exchange de origen
+            exchange_destino: Nombre del exchange de destino
+            cripto: Símbolo de la criptomoneda
+            
+        Returns:
+            tuple: (nombre_red, fee, tiempo_confirmacion) o (None, None, None) si no hay red común
+        """
+        # Obtener redes soportadas por cada exchange
+        redes_origen = self.redes_por_exchange.get(exchange_origen, self.redes_default).get(cripto, [])
+        redes_destino = self.redes_por_exchange.get(exchange_destino, self.redes_default).get(cripto, [])
+        
+        # Encontrar redes comunes
+        redes_comunes = [red for red in redes_origen if red in redes_destino]
+        
+        if not redes_comunes:
+            return None, None, None
+        
+        # Encontrar la red más económica entre las comunes
+        mejor_red = None
+        menor_fee = float('inf')
+        tiempo_confirmacion = 0
+        
+        for red_comun in redes_comunes:
+            for red_info in self.redes_blockchain.get(cripto, []):
+                if red_info[0] == red_comun and red_info[1] < menor_fee:
+                    mejor_red = red_comun
+                    menor_fee = red_info[1]
+                    tiempo_confirmacion = red_info[2]
+        
+        return mejor_red, menor_fee, tiempo_confirmacion
+    
+    def calcular_oportunidades_arbitraje(self):
+        """Calcula todas las oportunidades de arbitraje disponibles."""
+        oportunidades = []
+        
+        for pais, moneda in self.monedas_por_pais.items():
+            for cripto in self.criptos:
+                print(f"Verificando {cripto.upper()}/{moneda.upper()} en {pais}...")
+                
+                # Obtener precios para esta combinación
+                datos = self.obtener_precio(cripto, moneda, pais)
+                
+                if not datos or len(datos) < 2:
+                    continue
+                
+                exchanges = []
+                
+                # Filtrar exchanges con datos válidos
+                for exchange, info in datos.items():
+                    if isinstance(info, dict) and 'ask' in info and 'bid' in info:
+                        exchanges.append({
+                            'nombre': exchange,
+                            'compra': info.get('ask', 0),  # Precio al que podemos comprar
+                            'venta': info.get('bid', 0)    # Precio al que podemos vender
+                        })
+                
+                # Verificar oportunidades de arbitraje entre todos los exchanges
+                for i in range(len(exchanges)):
+                    for j in range(len(exchanges)):
+                        if i != j:  # No comparar un exchange consigo mismo
+                            exchange_compra = exchanges[i]
+                            exchange_venta = exchanges[j]
+                            
+                            # Solo considerar si ambos tienen precios mayores a cero
+                            if exchange_compra['compra'] <= 0 or exchange_venta['venta'] <= 0:
+                                continue
+                            
+                            # Encontrar la mejor red blockchain para transferir entre estos exchanges
+                            mejor_red, fee_blockchain_usd, tiempo_confirmacion = self.encontrar_mejor_red(
+                                exchange_compra['nombre'], 
+                                exchange_venta['nombre'],
+                                cripto
+                            )
+                            
+                            # Si no hay red compatible, saltar esta oportunidad
+                            if not mejor_red:
+                                continue
+                            
+                            # Calcular costos y fees
+                            precio_compra = exchange_compra['compra']
+                            precio_venta = exchange_venta['venta']
+                            
+                            # Aplicar fee del exchange de compra (%)
+                            fee_compra = precio_compra * (self.fees_exchanges.get(exchange_compra['nombre'], 1.0) / 100)
+                            
+                            # Aplicar fee del exchange de venta (%)
+                            fee_venta = precio_venta * (self.fees_exchanges.get(exchange_venta['nombre'], 1.0) / 100)
+                            
+                            # Convertir fee de blockchain a moneda local (estimación)
+                            # Primero necesitamos el tipo de cambio aproximado de USD a moneda local
+                            usd_a_moneda_local = 1
+                            if 'dolar' in datos:
+                                usd_a_moneda_local = datos['dolar'].get('price', 1)
+                            elif 'usd' in datos:
+                                usd_a_moneda_local = datos['usd'].get('price', 1)
+                            
+                            # Aplicar fee de blockchain en moneda local
+                            fee_blockchain = fee_blockchain_usd * usd_a_moneda_local
+                            
+                            # Calcular beneficio bruto por unidad
+                            beneficio_bruto = precio_venta - precio_compra
+                            
+                            # Calcular costos totales por unidad
+                            costos_totales = fee_compra + fee_venta + fee_blockchain
+                            
+                            # Calcular beneficio neto por unidad
+                            beneficio_neto = beneficio_bruto - costos_totales
+                            
+                            # Calcular porcentaje de ganancia
+                            porcentaje_ganancia = (beneficio_neto / precio_compra) * 100
+                            
+                            # Si hay ganancia y supera el umbral, registrar la oportunidad
+                            if porcentaje_ganancia > self.umbral_ganancia:
+                                oportunidades.append({
+                                    'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    'País': pais.capitalize(),
+                                    'Moneda': moneda.upper(),
+                                    'Cripto': cripto.upper(),
+                                    'Exchange Compra': exchange_compra['nombre'],
+                                    'Precio Compra': round(precio_compra, 2),
+                                    'Exchange Venta': exchange_venta['nombre'],
+                                    'Precio Venta': round(precio_venta, 2),
+                                    'Red Blockchain': mejor_red,
+                                    'Tiempo Conf. (min)': tiempo_confirmacion,
+                                    'Fee Compra': round(fee_compra, 2),
+                                    'Fee Venta': round(fee_venta, 2),
+                                    'Fee Blockchain': round(fee_blockchain, 2),
+                                    'Beneficio Bruto': round(beneficio_bruto, 2),
+                                    'Beneficio Neto': round(beneficio_neto, 2),
+                                    'Ganancia (%)': round(porcentaje_ganancia, 2)
+                                })
+        
+        # Ordenar por porcentaje de ganancia (de mayor a menor)
+        return sorted(oportunidades, key=lambda x: x['Ganancia (%)'], reverse=True)
+    
+    def mostrar_resultados(self, oportunidades):
+        """Muestra los resultados en forma de tabla."""
+        if not oportunidades:
+            print("\n¡No se encontraron oportunidades de arbitraje que superen el umbral de ganancia!")
+            return
+        
+        # Seleccionar columnas para mostrar en la tabla
+        columnas = [
+            'Fecha', 'País', 'Cripto', 'Moneda', 
+            'Exchange Compra', 'Precio Compra', 
+            'Exchange Venta', 'Precio Venta', 
+            'Red Blockchain', 'Fee Blockchain',
+            'Tiempo Conf. (min)', 'Beneficio Neto', 'Ganancia (%)'
+        ]
+        
+        # Crear DataFrame y mostrar tabla
+        df = pd.DataFrame(oportunidades)[columnas]
+        print("\nOportunidades de Arbitraje Encontradas:")
+        print(tabulate(df, headers='keys', tablefmt='pretty', showindex=False))
+    
+    def ejecutar_monitoreo_continuo(self):
+        """Ejecuta el monitoreo continuo de oportunidades de arbitraje."""
+        print("Iniciando monitoreo de oportunidades de arbitraje...")
+        
+        try:
+            while True:
+                print("\n" + "="*80)
+                print(f"Verificando oportunidades de arbitraje: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                print("="*80)
+                
+                # Calcular oportunidades
+                oportunidades = self.calcular_oportunidades_arbitraje()
+                
+                # Mostrar resultados
+                self.mostrar_resultados(oportunidades)
+                
+                # Esperar hasta la próxima verificación
+                print(f"Esperando {self.intervalo} segundos hasta la próxima verificación...")
+                time.sleep(self.intervalo)
+                
+        except KeyboardInterrupt:
+            print("Monitoreo detenido por el usuario.")
+        except Exception as e:
+            print(f"Error en el monitoreo: {str(e)}")
+
+# Ejecutar el script
+if __name__ == "__main__":
+    print("="*80)
+    print("DETECTOR DE OPORTUNIDADES DE ARBITRAJE CRIPTO")
+    print("="*80)
+    
+    # Crear y configurar el detector de arbitraje
+    intervalo = int(input("Intervalo entre verificaciones (segundos) [60]: ") or "60")
+    umbral = float(input("Umbral mínimo de ganancia porcentual [0.5]: ") or "0.5")
+    
+    detector = ArbitrajeDetector(intervalo_segundos=intervalo, umbral_ganancia=umbral)
+    
+    # Ejecutar monitoreo continuo
+    detector.ejecutar_monitoreo_continuo()

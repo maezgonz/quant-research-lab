@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Secrets — never commit
+.env
+
+# Data & notebooks (kept local)
+data/
+notebooks/
+*.xlsx
+*.csv
+
+# Tooling
+.idea/
+.vscode/
+.pytest_cache/
+.ruff_cache/
