@@ -1,5 +1,8 @@
 # quant-research-lab
 
+[![CI](https://github.com/maezgonz/quant-research-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/maezgonz/quant-research-lab/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 > Quantitative finance research codebase: market data pipelines, derivatives pricing, portfolio optimization and algorithmic trading utilities — focused on Argentine markets (BYMA, ROFEX/MAE, CCL/MEP) and crypto.
 
 Curated, sanitized extraction of my working research repository. All credentials load from environment variables — see [`.env.example`](.env.example).

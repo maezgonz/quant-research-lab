@@ -1,0 +1,25 @@
+# Core scientific stack
+numpy
+scipy
+pandas
+matplotlib
+seaborn
+scikit-learn
+statsmodels
+
+# Market data
+yfinance
+alpha_vantage
+nasdaq-data-link
+
+# Forecasting & ML (heavy — install only what you use)
+# tensorflow-cpu
+# torch
+# skfolio
+
+# Misc
+python-dotenv
+requests
+beautifulsoup4
+openpyxl
+tabulate
