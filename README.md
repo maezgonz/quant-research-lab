@@ -42,6 +42,22 @@ All API keys are **optional per module** — modules degrade gracefully or raise
 - **RBF kernel + Gaussian Process forecaster** blended with RandomForest and news sentiment (NewsAPI)
 - **Argentine-market data layer** — BCRA, BYMA, Rava, MAE, CCL/MEP dollar rates in one interface
 
+## GPU vs CPU on FinisTerrae-3 (A100)
+
+Same LSTM architecture, same GGAL data (4,783 windows, look_back 500, 10 epochs):
+
+![LSTM GPU vs CPU on FinisTerrae-3](docs/img/lstm_gpu_vs_cpu_ft3.png)
+
+| Config | Wall (s) | vs CPU | Lesson |
+|---|---:|---:|---|
+| CPU 32 cores (oneDNN, AVX512) | 310 | 1× | Baseline |
+| GPU A100 — naive (relu activation) | 867 | **0.36× — 2.8× slower** | Without cuDNN-compatible activations, TF falls back to a generic kernel — the GPU *hurts* |
+| GPU A100 — cuDNN (tanh/sigmoid) | 135 | **2.3×** | The same GPU, correct kernels |
+
+The takeaway: **kernel selection > hardware** — a naive GPU port of an LSTM can be slower than a well-vectorized CPU (oneDNN) unless the activation functions are cuDNN-compatible (`tanh`/`sigmoid`, not `relu`). This is the bridge between the quant models and HPC — running the same research code on both architectures.
+
+> Measured on CESGA FinisTerrae-3, jobs 10726308 (CPU), 10727674 (GPU naive), 10729025 (GPU cuDNN). Reproducible via `slurm/lstm_bench.slurm`.
+
 ## Notes
 
 - Broker/live-trading connectors are **intentionally excluded** from this public repo.
