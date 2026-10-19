@@ -11,6 +11,9 @@ Curated, sanitized extraction of my working research repository. All credentials
 
 *Demo: [`examples/generate_efficient_frontier.py`](examples/generate_efficient_frontier.py) — 20,000 random portfolios (Dirichlet weights) over 1y daily data of equities, GGAL, gold and crypto, colored by Sharpe ratio.*
 
+
+> **TL;DR (for non-technical visitors):** A full research lab: market data connectors, portfolio optimizers, ML forecasting. Benchmarked on CPU vs GPU on FinisTerrae-3.
+
 ## Packages
 
 | Package | Contents |
@@ -46,7 +49,7 @@ All API keys are **optional per module** — modules degrade gracefully or raise
 
 Same LSTM architecture, same GGAL data (4,783 windows, look_back 500, 10 epochs):
 
-![LSTM GPU vs CPU on FinisTerrae-3](docs/img/lstm_gpu_vs_cpu_ft3.png)
+
 
 | Config | Wall (s) | vs CPU | Lesson |
 |---|---:|---:|---|
