@@ -1,0 +1,105 @@
+name: Performance Regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "benchmarks/**"
+      - "src/**"
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install numpy scipy pytest
+          pip install -e .
+
+      - name: Run Black-Scholes benchmark
+        run: |
+          python -c "
+          import time, json
+          import numpy as np
+          from src.models.black_scholes import bs_pricing
+
+          rng = np.random.default_rng(42)
+          N = 100000
+          spots = rng.uniform(80, 120, N)
+          strikes = rng.uniform(90, 110, N)
+          tenors = rng.uniform(0.1, 2.0, N)
+          vols = rng.uniform(0.1, 0.5, N)
+
+          t0 = time.perf_counter()
+          result = bs_pricing(spots, strikes, 0.05, tenors, vols, option_type='C')
+          elapsed = time.perf_counter() - t0
+
+          metrics = {
+              'kernel': 'black_scholes_pricing',
+              'n_options': N,
+              'wall_s': round(elapsed, 4),
+              'throughput': round(N / elapsed, 0),
+              'sha': '${{ github.sha }}',
+              'timestamp': '${{ github.event.head_commit.timestamp }}'
+          }
+          with open('bench_current.json', 'w') as f:
+              json.dump(metrics, f)
+          print(json.dumps(metrics, indent=2))
+          "
+
+      - name: Compare with previous run
+        run: |
+          PREV_FILE="bench_history.json"
+          if [ -f "$PREV_FILE" ]; then
+            python -c "
+            import json, sys
+
+            with open('bench_current.json') as f:
+                current = json.load(f)
+            with open('$PREV_FILE') as f:
+                prev = json.load(f)
+
+            current_tp = current['throughput']
+            prev_tp = prev['throughput']
+            degradation = (prev_tp - current_tp) / prev_tp * 100
+
+            print(f'Current throughput: {current_tp:,.0f} options/s')
+            print(f'Previous throughput: {prev_tp:,.0f} options/s')
+            print(f'Degradation: {degradation:.1f}%')
+
+            # Fail if throughput dropped more than 20%
+            if degradation > 20:
+                print(f'FAIL: throughput degraded by {degradation:.1f}% (threshold: 20%)')
+                sys.exit(1)
+            elif degradation > 10:
+                print(f'WARNING: throughput degraded by {degradation:.1f}% (non-blocking)')
+            else:
+                print(f'OK: throughput within tolerance ({degradation:.1f}%)')
+            "
+          else
+            echo "No previous benchmark — this run establishes the baseline"
+          fi
+
+      - name: Update benchmark history
+        run: |
+          cp bench_current.json bench_history.json
+          git config user.name "maezgonz"
+          git config user.email "matiasez.gonzalez@gmail.com"
+          if git diff --quiet bench_history.json; then
+            echo "No benchmark change"
+          else
+            git add bench_history.json
+            git commit -m "ci: update benchmark history [skip ci]"
+            git push
+          fi
