@@ -14,6 +14,8 @@ Curated, sanitized extraction of my working research repository. All credentials
 
 > **TL;DR (for non-technical visitors):** A full research lab: market data connectors, portfolio optimizers, ML forecasting. Benchmarked on CPU vs GPU on FinisTerrae-3.
 
+> **Live report:** [CABA Real Estate Macro Analysis](https://maezgonz.github.io/quant-research-lab/informe_inmobiliario_macro.html) — 50 years of USD/m² cycles, UVA affordability and Monte Carlo projection, regenerated weekly by CI from live UVA/CCL/RIPTE data.
+
 ## Packages
 
 | Package | Contents |
@@ -23,6 +25,7 @@ Curated, sanitized extraction of my working research repository. All credentials
 | `src/portfolio/` | Risk metrics, HRP / risk parity, carry trade, portfolio audit, data912 |
 | `src/trading/` | Backtesting engine, market making, pairs arbitrage |
 | `src/quant/` | RBF/GP price prediction with news sentiment, regime detection, signal research |
+| `src/real_estate/` | CABA housing cycles: 50y USD/m², UVA/CCL ratio, salary effort index, Monte Carlo — [live HTML report](https://maezgonz.github.io/quant-research-lab/informe_inmobiliario_macro.html) |
 | `src/defi/` · `src/crypto/` | DeFi and crypto-specific analytics |
 | `src/core/` | Centralized config (dotenv), constants |
 | `src/utils/` | Retry logic, network helpers |

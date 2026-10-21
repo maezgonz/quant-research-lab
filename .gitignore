@@ -19,3 +19,5 @@ notebooks/
 .vscode/
 .pytest_cache/
 .ruff_cache/
+
+src/real_estate/reports/
