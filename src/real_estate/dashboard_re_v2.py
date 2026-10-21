@@ -25,17 +25,18 @@ import pandas as pd
 import urllib3
 from scipy.stats import zscore
 
-from src.utils import network
-
 # Forzar UTF-8 en consola de Windows para evitar errores con caracteres especiales
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
-# Asegurar que el directorio raíz ('Scripts') esté en sys.path para importar 'src'
+# Bootstrap sys.path BEFORE importing 'src' — otherwise the import below only
+# resolves when the project root is already on the path (as on the dev machine)
 _project_root = Path(__file__).resolve().parents[2]
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
+
+from src.utils import network  # noqa: E402
 
 # --- CONFIGURACIÓN DE USUARIO ---
 TNA_BANCO = 6

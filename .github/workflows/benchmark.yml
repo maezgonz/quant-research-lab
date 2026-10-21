@@ -23,9 +23,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: |
-          pip install numpy scipy pytest
-          pip install -e .
+        run: pip install numpy scipy pytest
 
       - name: Run Black-Scholes benchmark
         run: |
