@@ -10,9 +10,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: benchmark
+  cancel-in-progress: true
+
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    # Pinned so throughput stays comparable across runner generations; bump when GitHub retires the image
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,10 +99,10 @@ jobs:
           cp bench_current.json bench_history.json
           git config user.name "maezgonz"
           git config user.email "matiasez.gonzalez@gmail.com"
-          if git diff --quiet bench_history.json; then
+          git add bench_history.json
+          if git diff --cached --quiet; then
             echo "No benchmark change"
           else
-            git add bench_history.json
             git commit -m "ci: update benchmark history [skip ci]"
             git push
           fi

@@ -22,7 +22,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import urllib3
 from scipy.stats import zscore
 
 # Forzar UTF-8 en consola de Windows para evitar errores con caracteres especiales
@@ -41,13 +40,12 @@ from src.utils import network  # noqa: E402
 # --- CONFIGURACIÓN DE USUARIO ---
 TNA_BANCO = 6
 DIAS_PROYECCION = 365
-NUM_SIMULACIONES = 0  # Aumenta esto si quieres ver la nube de Montecarlo
+NUM_SIMULACIONES = 200  # shortcut: unseeded RNG — the cloud differs run to run; seed it if you need reproducible reports
 GENERAR_INFORME_HTML = True
 OPEN_IN_BROWSER = False  # CI/Pages runs headless; flip locally to preview
 MOSTRAR_PLOTS_INTERACTIVOS = False  # True para abrir ventanas GUI de matplotlib
 
 # Configuración visual
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 plt.style.use("seaborn-v0_8-whitegrid")
 plt.rcParams["figure.dpi"] = 100
 
@@ -178,12 +176,12 @@ def descargar_financieros_full():
     try:
         # 1. Cotizaciones
         df_uva = pd.DataFrame(
-            network.get_insecure(
+            network.get(
                 "https://api.argentinadatos.com/v1/finanzas/indices/uva", timeout=15
             ).json()
         )
         df_ccl = pd.DataFrame(
-            network.get_insecure(
+            network.get(
                 "https://api.argentinadatos.com/v1/cotizaciones/dolares/contadoconliqui",
                 timeout=15,
             ).json()
@@ -202,7 +200,7 @@ def descargar_financieros_full():
         df_ripte = pd.DataFrame()
         for url in urls_ripte:
             try:
-                r = network.get_insecure(url, timeout=5)
+                r = network.get(url, timeout=5)
                 if r.status_code == 200:
                     df_ripte = pd.read_csv(
                         io.StringIO(r.text), parse_dates=["indice_tiempo"]
@@ -217,6 +215,9 @@ def descargar_financieros_full():
                     break
             except Exception:
                 continue
+
+        if df_ripte.empty:
+            print("[WARN] RIPTE no disponible — el informe se publicará sin el índice de esfuerzo")
 
         # 3. Fusión de datos
         df = df_uva.join(df_ccl[["venta"]], how="inner").rename(
