@@ -1,0 +1,1 @@
+{"kernel": "black_scholes_pricing", "n_options": 100000, "wall_s": 0.0662, "throughput": 1510803.0, "sha": "889057c0ed22d5a2ca9371d9da9ab47f4f68b99e", "timestamp": "2026-10-23T21:57:51+02:00"}
